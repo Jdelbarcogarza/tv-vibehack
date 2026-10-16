@@ -5,22 +5,31 @@
 -->
 <resources>
 
-    <!-- Apps pinned to the dock row at the bottom, in this order. Missing apps are skipped. -->
+    <!-- Apps pinned to the dock row at the bottom, in this order. Missing apps are skipped, so the
+         dock shows the first four of these that are installed. -->
     <string-array name="dock_apps">
         <item>com.netflix.ninja</item>
         <item>com.amazon.amazonvideo.livingroom</item>
         <item>com.google.android.youtube.tv</item>
-        <item>in.startv.hotstar</item>
+        <item>com.univision.prendetv</item>                      <!-- ViX -->
+        <item>com.disney.disneyplus</item>
+        <item>com.wbd.stream</item>                              <!-- HBO Max -->
+        <item>com.dazn</item>
+        <item>com.bamnetworks.mobile.android.gameday.atbat</item> <!-- MLB -->
     </string-array>
 
     <!-- Apps never shown as tiles (e.g. the Live TV app, which the Inputs menu already covers). -->
     <string-array name="hidden_apps">
-        <item>com.mediatek.wwtv.tvcenter</item>
-        <item>com.mitv.gallery</item>
+        <item>com.tcl.tv</item>
     </string-array>
 
     <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
-    <string name="live_tv_package" translatable="false">com.mediatek.wwtv.tvcenter</string>
+    <string name="live_tv_package" translatable="false">com.tcl.tv</string>
+
+    <!-- Home screen background, pitch black by default. For an image: put a dark 1920x1080 JPEG at
+         app/src/main/res/drawable-nodpi/wallpaper_image.jpg, then replace the line below with
+         <item name="wallpaper" type="drawable">@drawable/wallpaper_image</item> -->
+    <drawable name="wallpaper">#FF000000</drawable>
 
     <!-- Tiles per row in the grid; the dock always has this many slots. -->
     <integer name="columns">4</integer>

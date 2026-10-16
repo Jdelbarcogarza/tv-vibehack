@@ -75,6 +75,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private static int lastFocused = 0;
     /** App of the last focused tile, so focus follows it when the app list changes. */
     private static String lastFocusedKey;
+    /** Refocus waiting for its tile to be laid out (see focusTile), and the position it targets. */
+    private Runnable pendingFocus;
+    private int pendingPos;
     private float density;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -155,7 +158,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         springX = new SpringAnimation(glass, DynamicAnimation.TRANSLATION_X);
         springY = new SpringAnimation(glass, DynamicAnimation.TRANSLATION_Y);
         for (SpringAnimation s : new SpringAnimation[]{springX, springY}) {
-            s.setSpring(new SpringForce().setStiffness(260f).setDampingRatio(0.58f));
+            // Damping 0.72 overshoots ~4%: a soft settle without visible bouncing (0.58 overshot ~11%).
+            s.setSpring(new SpringForce().setStiffness(260f).setDampingRatio(0.72f));
         }
 
         View btnInputs = findViewById(R.id.btnInputs);
@@ -205,16 +209,28 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         // Return to the app we left from, or the same slot if that app is gone. Always refocus: after
         // reload() the view that holds focus may no longer show the app it had.
-        grid.post(() -> {
-            int pos = adapter.positionOf(returnKey);
-            focusTile(pos >= 0 ? pos : returnSlot);
-        });
+        int pos = adapter.positionOf(returnKey);
+        focusTile(pos >= 0 ? pos : returnSlot);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        // A key pressed before a pending refocus has landed (right after Home): place focus first, so
+        // the key moves from the restored tile instead of being overridden by the refocus afterwards.
+        if (event.getAction() == KeyEvent.ACTION_DOWN && pendingFocus != null) {
+            grid.removeCallbacks(pendingFocus);
+            pendingFocus = null;
+            tryFocus(pendingPos);
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         handler.removeCallbacks(minuteTick);
+        if (pendingFocus != null) grid.removeCallbacks(pendingFocus);
+        pendingFocus = null;
     }
 
     @Override
@@ -353,26 +369,35 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void focusTile(int position) {
         if (adapter.getItemCount() == 0) return;
         final int pos = Math.max(0, Math.min(position, adapter.getItemCount() - 1));
-        RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(pos);
-        if (vh != null) {
-            View card = vh.itemView.findViewById(R.id.card);
-            // Already focused (e.g. back from an app): no focus change fires, so restore the glass by hand.
-            if (card.isFocused()) onTileFocused(pos, card);
-            else card.requestFocus();
-            return;
-        }
-        // Not laid out yet: scroll there, then focus once the scroll settles.
-        grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
+        // Only one refocus in flight: a stale one landing later would pull focus away from the user.
+        if (pendingFocus != null) grid.removeCallbacks(pendingFocus);
+        pendingFocus = null;
+        if (tryFocus(pos)) return;
+        // Not laid out yet (e.g. right after reload()): bring it on screen and retry on the next frames.
+        grid.scrollToPosition(pos);
+        pendingPos = pos;
+        pendingFocus = new Runnable() {
+            int tries;
+
             @Override
-            public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
-                if (newState != RecyclerView.SCROLL_STATE_IDLE) return;
-                rv.removeOnScrollListener(this);
-                RecyclerView.ViewHolder h = rv.findViewHolderForAdapterPosition(pos);
-                View target = h != null ? h.itemView.findViewById(R.id.card) : rv.getChildAt(0);
-                if (target != null) target.requestFocus();
+            public void run() {
+                if (tryFocus(pendingPos) || ++tries >= 10) pendingFocus = null;
+                else grid.postOnAnimation(this);
             }
-        });
-        grid.smoothScrollToPosition(pos);
+        };
+        grid.postOnAnimation(pendingFocus);
+    }
+
+    /** Focuses the tile at pos if its view is laid out and current; returns false otherwise. */
+    private boolean tryFocus(int pos) {
+        if (grid.hasPendingAdapterUpdates()) return false;
+        RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(pos);
+        if (vh == null) return false;
+        View card = vh.itemView.findViewById(R.id.card);
+        // Already focused (e.g. back from an app): no focus change fires, so restore the glass by hand.
+        if (card.isFocused()) onTileFocused(pos, card);
+        else card.requestFocus();
+        return true;
     }
 
     // ---- top bar ---------------------------------------------------------------------------------

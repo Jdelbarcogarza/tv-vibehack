@@ -102,6 +102,7 @@ Lists that people have tested and contributed live in [`examples/`](examples/):
 | TCL 55" 4K Google TV, 2023 (G10) | Google TV 12 |
 | SANYO ATV R2 | Android TV 9 |
 | OnePlus TV (D00) | Google TV 14 |
+| TCL Smart TV Pro (BeyondTV4) | Android TV 11 |
 
 Your TV not here? The prompt works regardless, it discovers the bloat itself. If you add your
 list afterwards, the next person with your model skips that step. See
@@ -152,7 +153,8 @@ AndroidX RecyclerView and nothing heavier. It is built for sets with 1 GB of RAM
 video, no network, no background services.
 
 **Configure** it in [`launcher/app/src/main/res/values/config.xml`](launcher/app/src/main/res/values/config.xml):
-the dock order, apps to hide, your TV's Live TV package, and the number of columns.
+the dock order, apps to hide, your TV's Live TV package, the number of columns, and the
+background (pitch black, or an image you add; the steps are in the file).
 
 **Build and install** with one command:
 
@@ -217,6 +219,8 @@ Things that bit us or contributors, so they don't bite you.
 - **No on-screen keyboard** after switching launchers, seen on Xiaomi: the default input method
   pointed at a Baidu keyboard that isn't installed. Fix:
   `tools/tv.py 'ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME'`
+- **Play Protect says the app "was built for an older version of Android"** when you sideload
+  something with an old `targetSdk`. The launcher targets SDK 34, so it installs without the prompt.
 - **Third-party launchers** often charge for basics like a custom wallpaper. That's why this repo
   has its own.
 
